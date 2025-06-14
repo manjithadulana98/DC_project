@@ -61,7 +61,7 @@ bootstrap_server.BootstrapServerConnection.connect_to_bs = safe_connect_to_bs
 print("[Patch] Done. Launching node.py...\n")
 
 # --- Execute node.py manually (preserves sys.argv) ---
-with open("node.py", "r") as f:
+with open("node.py", "r", encoding="utf-8") as f:
     code = f.read()
 
 exec(code)
