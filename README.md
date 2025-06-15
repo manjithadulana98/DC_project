@@ -5,12 +5,15 @@ A lightweight peer-to-peer file-sharing overlay network using TCP (for bootstrap
 ## 🔧 How to Run
 
 ### 1. Start Bootstrap Server
+
 # Distributed Content-Sharing Overlay Network
 
 ## Overview
+
 This project implements a distributed content-sharing overlay using a peer-to-peer (P2P) design. Nodes can register with a bootstrap server, discover neighbors, exchange messages over UDP, and search for files using flooding-based keyword search.
 
 ## Features
+
 - Bootstrap server for node registration
 - Peer discovery and UDP-based communication
 - Flooding search with TTL and loop prevention
@@ -18,15 +21,32 @@ This project implements a distributed content-sharing overlay using a peer-to-pe
 - Configurable file and query list
 
 ## Components
+
 - `bootstrap_server_main.py`: Starts the central bootstrap server (TCP)
 - `patched_node.py`: Launches a node and applies dynamic patches
 - `node.py`: Main overlay node logic (called by `patched_node.py`)
 - `file_list.txt`: List of files for each node
 - `queries.txt`: Search queries to simulate
 
+## Setup
+
+### 1. Create a virtual environment (recommended):
+
+```bash
+python -m venv venv
+source venv/bin/activate  # or .\venv\Scripts\activate on Windows
+```
+
+### 2. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
 ## Usage
 
 ### 1. Start Bootstrap Server
+
 ```bash
 python bootstrap_server_main.py
 ```
@@ -46,12 +66,14 @@ python patched_node.py A 5101 127.0.0.1
 ```
 
 ## ✅ Features (Phase 1)
+
 - Bootstrap registration via TCP
 - JOIN and JOINOK via UDP
 - Routing table and file list display
 - File preload via `files.txt`
 
 ## 📦 Next (Phase 2)
+
 - SER/SEROK support for search
 - TTL, hops, deduplication
 - Search performance logging
@@ -66,6 +88,7 @@ node.py
 ttypes.py
 files.txt
 ```
+
 ### 2. Start Nodes (in separate terminals)
 
 ```
@@ -75,6 +98,7 @@ python patched_node.py B 5102 127.0.0.1
 ```
 
 ### 3. Each node:
+
 - Loads files from file_list.txt
 
 - Sends JOIN messages to discovered neighbors
@@ -84,24 +108,30 @@ python patched_node.py B 5102 127.0.0.1
 - Receives SEROK responses and logs matches
 
 ## Message Formats
+
 ### Registration (TCP)
 
 ```
 REG <ip> <port> <username>
 ```
+
 ### Join / Search (UDP)
+
 ```
 JOIN <ip> <port>
 SER <origin_ip> <origin_port> "<keyword>" <ttl>
 SEROK <file_count> <ip> <port> <hops> <file1> <file2> ...
 
 ```
+
 ### File Sharing
+
 - File matching is case-insensitive and partial keyword-based
 
 - All matches are returned via SEROK
 
 ### Logging
+
 Each node logs:
 
 - Neighbors from bootstrap
@@ -113,6 +143,7 @@ Each node logs:
 - Matches via SEROK
 
 ### Notes
+
 - Uses only Python standard libraries
 
 - Avoids external P2P libraries
