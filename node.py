@@ -5,6 +5,17 @@ from bootstrap_server import BootstrapServerConnection
 import socket
 import threading
 import shlex
+from flask import Flask, jsonify
+import hashlib
+import random
+import requests
+import os
+import traceback
+import base64
+
+app = Flask(__name__)
+node_instance = None  # Will be set to the OverlayNode so Flask can access it
+
 
 def load_files(file_path="file_list.txt", count=5):
     try:
@@ -35,13 +46,13 @@ class OverlayNode:
         self.files = random.sample(file_pool, random.randint(3, 5))
 
     def register_and_join(self):
-        with BootstrapServerConnection(self.bs, self.me) as bs_conn:
-            self.users = bs_conn.users  # Store initial neighbors
-            print(f"[{self.me.name}] Neighbors from BS:")
-            for peer in self.users:
-                print(f" → {peer.ip}:{peer.port} ({peer.name})")
-            
-            self.send_join_requests()  # Send JOIN to each neighbor
+        self.bs_conn = BootstrapServerConnection(self.bs, self.me)
+        self.users = self.bs_conn.connect_to_bs()   
+        print(f"[{self.me.name}] Neighbors from BS:")
+        for peer in self.users:
+            print(f" → {peer.ip}:{peer.port} ({peer.name})")
+        
+        self.send_join_requests()  # Send JOIN to each neighbor
 
 
     def display_status(self):
@@ -116,16 +127,43 @@ class OverlayNode:
             try:
                 result_count = int(tokens[1])
                 sender_ip = tokens[2]
-                sender_port = tokens[3]
+                sender_port = int(tokens[3])
                 hop_count = tokens[4]
                 matched_files = tokens[5:]
 
-                print(f"[{self.me.name}] SEROK received from {sender_ip}:{sender_port}")
-                print(f"[{self.me.name}]  → Found {result_count} file(s) in {hop_count} hops:")
+                print(f"[{self.me.name}] SEROK from {sender_ip}:{sender_port} with {result_count} result(s):")
                 for f in matched_files:
-                    print(f"[{self.me.name}]     - {f}")
+                    print(f" - {f}")
+
+                # Download first file using REST
+                file_to_download = matched_files[0]
+                rest_port = int(sender_port) + 1000
+                url = f"http://{sender_ip}:{rest_port}/download/{file_to_download}"
+
+                response = requests.get(url)
+                if response.status_code == 200:
+                    data = response.json()
+                    filename = data['filename']
+                    file_content = data['content']  # assuming raw text or base64
+                    file_size = data['size_MB']
+                    file_hash = data['hash']
+
+                    # Create a folder for the node if it doesn't exist
+                    download_dir = f"downloads/{self.me.name}"
+                    os.makedirs(download_dir, exist_ok=True)
+
+                    # Save file
+                    file_path = os.path.join(download_dir, filename)
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(file_content)
+
+                    print(f"[{self.me.name}] ✔ Saved to {file_path} | {file_size}MB | SHA: {file_hash}")
+                else:
+                    print(f"[{self.me.name}] ✖ Download failed from {url}")
+
             except Exception as e:
-                print(f"[{self.me.name}] Error parsing SEROK: {e}")
+                print(f"[{self.me.name}] ❌ Error parsing SEROK: {e}")
+                traceback.print_exc()
 
     def send_join_requests(self):
         for peer in self.users:
@@ -168,18 +206,54 @@ class OverlayNode:
         print(f"[{self.me.name}] Starting up node")
         self.start_udp_listener()  # NEW LINE!
         self.register_and_join()
+        self.start_rest_server()
+        
+        try:
+            print(f"[{self.me.name}] Routing table:")
+            for entry in self.routing_table:
+                print(f"  -> {entry}")
 
-        print(f"[{self.me.name}] Routing table:")
-        for entry in self.routing_table:
-            print(f"  -> {entry}")
+            print(f"[{self.me.name}] Files:")
+            for f in self.files:
+                print(" -", f)
 
-        print(f"[{self.me.name}] Files:")
-        for f in self.files:
-            print(" -", f)
+            for query in self.query_list:
+                self.initiate_search(query)
+                time.sleep(2)
+        except KeyboardInterrupt:
+            print(f"[{self.me.name}] Shutting down...")
+            self.bs_conn.unreg_from_bs()
+        finally:
+            self.bs_conn.unreg_from_bs()
+    
+    def start_rest_server(self):
+        from threading import Thread
+        global node_instance
+        node_instance = self  # So the Flask route can access the node name
 
-        for query in self.query_list:
-            self.initiate_search(query)
-            time.sleep(2)
+        flask_thread = Thread(
+            target=app.run,
+            kwargs={'host': self.me.ip, 'port': self.me.port + 1000, 'debug': False, 'use_reloader': False}
+        )
+        flask_thread.daemon = True
+        flask_thread.start()
+
+
+
+@app.route("/download/<filename>")
+def download(filename):
+    size_MB = random.randint(2, 10)
+    content = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=size_MB * 1024 * 1024))
+    encoded_content = base64.b64encode(content.encode()).decode()
+    file_hash = hashlib.sha256(content.encode()).hexdigest()
+
+    return jsonify({
+        "filename": filename,
+        "content": encoded_content,  # <-- this is required by the node
+        "size_MB": size_MB,
+        "hash": file_hash
+    })
+
 
 if __name__ == "__main__":
     import sys
