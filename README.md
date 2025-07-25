@@ -1,11 +1,3 @@
-# Distributed Overlay Network - Quick Guide
-
-A lightweight peer-to-peer file-sharing overlay network using TCP (for bootstrap server) and UDP (for node communication).
-
-## 🔧 How to Run
-
-### 1. Start Bootstrap Server
-
 # Distributed Content-Sharing Overlay Network
 
 ## Overview
@@ -19,7 +11,6 @@ This project implements a distributed content-sharing overlay using a peer-to-pe
 - Configurable file and query lists
 
 ## Components
-
 - `bootstrap_server_main.py`: Starts the central bootstrap server (TCP)
 - `patched_node.py`: Launches a node and applies runtime patches to bootstrap logic
 - `node.py`: Main overlay node logic (executed by `patched_node.py`)
@@ -30,47 +21,8 @@ This project implements a distributed content-sharing overlay using a peer-to-pe
 ## Usage
 
 ### 1. Start Bootstrap Server
-
 ```bash
 python bootstrap_server_main.py
-```
-
-### 2. Launch Nodes
-
-In separate terminals:
-
-```bash
-python patched_node.py <name> <port> <bs_ip>
-```
-
-Example:
-
-```bash
-python patched_node.py A 5101 127.0.0.1
-```
-
-## ✅ Features (Phase 1)
-
-- Bootstrap registration via TCP
-- JOIN and JOINOK via UDP
-- Routing table and file list display
-- File preload via `files.txt`
-
-## 📦 Next (Phase 2)
-
-- SER/SEROK support for search
-- TTL, hops, deduplication
-- Search performance logging
-
-## 📂 Structure
-
-```
-bootstrap_server_main.py
-bootstrap_server.py
-patched_node.py
-node.py
-ttypes.py
-files.txt
 ```
 
 ### 2. Start Nodes (in separate terminals)
@@ -90,29 +42,23 @@ python patched_node.py B 5102 127.0.0.1
 
 ## Message Formats
 
-
 ### Registration (TCP)
 ```
 REG <ip> <port> <username>
 ```
 
-
 ### Join / Search (UDP)
-
 ```
 JOIN <ip> <port>
 SER <origin_ip> <origin_port> "<keyword>" <ttl>
 SEROK <file_count> <ip> <port> <hops> <file1> <file2> ...
 ```
 
-
 ### File Sharing
-
 - File matching is case-insensitive and partial keyword-based
 - All matches are returned via SEROK
 
 ### Logging
-
 Each node logs:
 - Neighbors from bootstrap
 - Incoming messages
