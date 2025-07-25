@@ -7,7 +7,8 @@ print("[Patch] Applying patches to bootstrap_server.py...")
 # --- Patch 1: Ensure message_with_length returns bytes ---
 original_format = bootstrap_server.BootstrapServerConnection.message_with_length
 def patched_format(self, message):
-    return original_format(self, message).encode()
+    result = original_format(self, message)
+    return result if isinstance(result, bytes) else result.encode()
 bootstrap_server.BootstrapServerConnection.message_with_length = patched_format
 
 # --- Patch 2: Prevent unregister on connect ---
