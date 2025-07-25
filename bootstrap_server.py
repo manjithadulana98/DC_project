@@ -25,7 +25,7 @@ class BootstrapServerConnection:
         '''
         message = " " + message
         message = str((10000+len(message)+5))[1:] + message
-        return message
+        return message.encode()
 
     def connect_to_bs(self):
         '''
@@ -38,59 +38,62 @@ class BootstrapServerConnection:
         Raises:
             RuntimeError: If server sends an invalid response or if registration is unsuccessful
         '''
-        self.unreg_from_bs()
         buffer_size = 1024
-        message = "REG "+ self.me.ip + " " +str(self.me.port) +" " + self.me.name
+        message = "REG " + self.me.ip + " " + str(self.me.port) + " " + self.me.name
 
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((self.bs.ip, self.bs.port))
         s.send(self.message_with_length(message))
         data = s.recv(buffer_size)
         s.close()
+
+        data = data.decode()
         print(data)
-        
-        toks = data.split()
-        
-        if (len(toks) < 3):
-            raise RuntimeError("Invalid message")
-        
-        if (toks[1] != "REGOK"):
+
+        toks = data.strip().split()
+
+        if len(toks) < 3 or toks[1] != "REGOK":
             raise RuntimeError("Registration failed")
-        
-        num = int(toks[2])
-        if (num < 0):
-            raise RuntimeError("Registration failed")
-            
-        if (num == 0):
+
+        try:
+            count = int(toks[2])
+        except ValueError:
+            raise RuntimeError("Invalid REGOK response")
+
+        if count == 0:
             return []
-        elif (num == 1):
+        elif count == 1:
             return [Node(toks[3], int(toks[4]), toks[5])]
+        elif count == 2:
+            return [
+                Node(toks[3], int(toks[4]), toks[5]),
+                Node(toks[6], int(toks[7]), toks[8])
+            ]
         else:
-            l = range(1, num+1)
-            shuffle(l)
-            return [Node(toks[l[0]*3], int(toks[l[0]*3+1]), toks[l[0]*3+2]), Node(toks[l[1]*3], int(toks[l[1]*3+1]), toks[l[1]*3+2])]
-        
+            raise RuntimeError("Unexpected peer count")
+
     def unreg_from_bs(self):
         '''
         Unregister node at bootstrap server.
-        Args:
-            bs (tuple(str, int)): Bootstrap server IP address and port as a tuple.
-            me (tuple(str, int)): This node's IP address and port as a tuple.
-            myname (str)        : This node's name
-        Returns:
-            list(tuple(str, int)) : List of other nodes in the distributed system
-        Raises:
-            RuntimeError: If unregistration is unsuccessful
         '''
         buffer_size = 1024
-        message = "UNREG "+ self.me.ip + " " +str(self.me.port) +" " + self.me.name
+        message = "UNREG " + self.me.ip + " " + str(self.me.port) + " " + self.me.name
 
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((self.bs.ip, self.bs.port))
         s.send(self.message_with_length(message))
         data = s.recv(buffer_size)
         s.close()
-        
-        toks = data.split()
-        if (toks[1] != "UNROK"):
+
+        toks = data.decode().split()
+
+        if toks[1] != "UNROK":
             raise RuntimeError("Unreg failed")
+
+        code = toks[2]
+        if code == "9999":
+            print(f"[{self.me.name}] UNREG failed: node not found (already unregistered)")
+            return
+        elif code != "0":
+            raise RuntimeError(f"UNREG failed with code: {code}")
+
