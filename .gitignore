@@ -8,3 +8,7 @@ env/
 venv/
 ENV/
 downloads/
+*.csv
+*.txt
+results/
+results_/
