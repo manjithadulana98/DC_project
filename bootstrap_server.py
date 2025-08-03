@@ -27,19 +27,10 @@ class BootstrapServerConnection:
         message = str((10000+len(message)+5))[1:] + message
         return message.encode()
 
+
     def connect_to_bs(self):
-        '''
-        Register node at bootstrap server.
-        Args:
-            bs (Node): Bootstrap server node
-            me (Node): This node
-        Returns:
-            list(Node) : List of other nodes in the distributed system
-        Raises:
-            RuntimeError: If server sends an invalid response or if registration is unsuccessful
-        '''
         buffer_size = 1024
-        message = "REG " + self.me.ip + " " + str(self.me.port) + " " + self.me.name
+        message = f"REG {self.me.ip} {self.me.port} {self.me.name}"
 
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((self.bs.ip, self.bs.port))
@@ -48,29 +39,19 @@ class BootstrapServerConnection:
         s.close()
 
         data = data.decode()
-        print(data)
-
+        print(f"[{self.me.name}] REG response: {data}")
         toks = data.strip().split()
 
         if len(toks) < 3 or toks[1] != "REGOK":
             raise RuntimeError("Registration failed")
 
-        try:
-            count = int(toks[2])
-        except ValueError:
-            raise RuntimeError("Invalid REGOK response")
-
-        if count == 0:
-            return []
-        elif count == 1:
-            return [Node(toks[3], int(toks[4]), toks[5])]
-        elif count == 2:
-            return [
-                Node(toks[3], int(toks[4]), toks[5]),
-                Node(toks[6], int(toks[7]), toks[8])
-            ]
-        else:
-            raise RuntimeError("Unexpected peer count")
+        count = int(toks[2])
+        users = []
+        for i in range(count):
+            offset = 3 + i * 3
+            ip, port, name = toks[offset], int(toks[offset + 1]), toks[offset + 2]
+            users.append(Node(ip, port, name))
+        return users
 
     def unreg_from_bs(self):
         '''
@@ -96,4 +77,7 @@ class BootstrapServerConnection:
             return
         elif code != "0":
             raise RuntimeError(f"UNREG failed with code: {code}")
+
+
+
 
